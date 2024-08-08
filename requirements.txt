@@ -1,0 +1,4 @@
+aiogram<4.0
+pydantic-settings
+aiohttp
+aiodns
