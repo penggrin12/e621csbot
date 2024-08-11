@@ -2,7 +2,7 @@ import asyncio
 import logging
 from aiogram import Bot, Dispatcher, types
 from aiogram.exceptions import TelegramBadRequest
-from aiogram.client.default import DefaultBotProperties
+oh
 from aiogram.filters.command import Command
 import aiohttp
 import urllib.parse
@@ -36,9 +36,15 @@ def combine_tags(tags: Dict[str, List[str]]) -> List[str]:
 #         await message.reply("Expected to see tags.")
 #         return
 
-def beautify_link(url: str):
-    parsed = urllib.parse.urlparse(url)
-    return f'<a href="{url}">{parsed.hostname.rsplit(".", 1)[0].split(".")[-1].title()}</a>'
+def beautify_link(url: Optional[str]):
+    if url is None:
+        return "Unknown"
+
+    try:
+        parsed = urllib.parse.urlparse(url)
+        return f'<a href="{url}">{parsed.hostname.rsplit(".", 1)[0].split(".")[-1].title()}</a>'
+    except AttributeError:
+        return url
 
 
 @dp.message(Command("start"))
