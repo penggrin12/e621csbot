@@ -67,7 +67,7 @@ async def cmd_34(message: types.Message, second_attempt: bool = False):
     query = urllib.parse.quote(command[-1]).split("%20")
     query.append("sort:random")
 
-    posts: List[R34Post] = r34.search(query, limit=1)
+    posts: List[R34Post] = r34.search(query, limit=5)
     if len(posts) <= 0:
         await message.reply("No posts found.")
         return
@@ -81,9 +81,13 @@ async def cmd_34(message: types.Message, second_attempt: bool = False):
     caption: str = (
         f'🙊 <a href="https://rule34.xxx/index.php?page=post&s=view&id={post.id}">{post.id}</a>'
         f"\n\n<blockquote expandable>Tags ({len(post.tags)}):\n\n"
-        + (', '.join(post.tags)) +
-        "</blockquote>"
+        + (', '.join(post.tags))
     )
+
+    if len(caption) >= 1008:
+        caption = caption[:1008] + "..."
+
+    caption += "</blockquote>"
 
     try:
         if is_photo:
@@ -98,7 +102,7 @@ async def cmd_34(message: types.Message, second_attempt: bool = False):
         if second_attempt:
             await message.reply(f"Failed on second attempt. {e}")
             return
-        return await cmd_fur(message, True)
+        return await cmd_34(message, True)
 
 
 @dp.message(Command("fur"))
@@ -142,8 +146,12 @@ async def cmd_fur(message: types.Message, second_attempt: bool = False):
                 f"\n\nSpecies ({len(post['tags']['species'])}):\n{', '.join(post['tags']['species'])}"
                 f"\n\nMeta ({len(post['tags']['meta'])}):\n{', '.join(post['tags']['meta'])}"
                 f"\n\nLore ({len(post['tags']['lore'])}):\n{', '.join(post['tags']['lore'])}"
-                "</blockquote>"
             )
+
+            if len(caption) >= 1008:
+                caption = caption[:1008] + "..."
+
+            caption += "</blockquote>"
 
             if is_flash:
                 await message.reply(f"Flash not supported.\n\n{caption}")
