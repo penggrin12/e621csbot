@@ -8,13 +8,13 @@ import aiohttp
 import urllib.parse
 from typing import Dict, List, Optional
 from config_reader import config
+from rule34Py import rule34Py, Post as R34Post
 
 logging.basicConfig(level=logging.INFO)
+
+r34 = rule34Py()
 bot = Bot(token=config.bot_token.get_secret_value(), default=DefaultBotProperties(parse_mode="html"))
 dp = Dispatcher()
-
-class StaticData:
-    last_tags = None
 
 def combine_tags(tags: Dict[str, List[str]]) -> List[str]:
     result: List[str] = []
@@ -51,30 +51,63 @@ def beautify_link(url: Optional[str]):
 async def cmd_start(message: types.Message):
     await message.reply((
         f"Commands:"
-        f"\n- <code>/fur &lt;Tags&gt;</code> | Lookup a random post with given tags"
-        f"\n- <code>/furl</code> | Lookup a random post with previously given tags from <code>/fur</code>"
+        f"\n- <code>/fur &lt;Tags&gt;</code> | Lookup a random post on <code>e621.net</code> with given tags"
+        f"\n- <code>/34 &lt;Tags&gt;</code> | Lookup a random post on <code>rule34.xxx</code> with given tags"
         f"\n\n🇷🇺 <code>2200 7008 6671 1137</code>"
         f'\n💎 <a href="https://t.me/send?start=IVpmagfZBT5P">Cryptobot</a>'
     ))
 
-@dp.message(Command("furl"))
-async def cmd_furl(message: types.Message):
-    if not StaticData.last_tags:
-        await message.reply("I dont know any tags yet.")
+
+@dp.message(Command("34"))
+async def cmd_34(message: types.Message, second_attempt: bool = False):
+    command = message.text.split(" ", 1)
+    if len(command) <= 1:
+        await message.reply("Expected to see tags.")
+        return
+    query = urllib.parse.quote(command[-1]).split("%20")
+    query.append("sort:random")
+
+    posts: List[R34Post] = r34.search(query, limit=1)
+    if len(posts) <= 0:
+        await message.reply("No posts found.")
         return
 
-    return await cmd_fur(message, StaticData.last_tags)
+    post = posts[0]
+
+    is_photo: bool = post.content_type == "image"
+    is_video: bool = post.content_type == "video"
+    is_gif: bool = post.content_type == "gif"
+
+    caption: str = (
+        f'🙊 <a href="https://rule34.xxx/index.php?page=post&s=view&id={post.id}">{post.id}</a>'
+        f"\n\n<blockquote expandable>Tags ({len(post.tags)}):\n\n"
+        + (', '.join(post.tags)) +
+        "</blockquote>"
+    )
+
+    try:
+        if is_photo:
+            await message.reply_photo(post.image, has_spoiler=True, caption=caption)
+        elif is_video:
+            await message.reply_video(post.video, has_spoiler=True, caption=caption)
+        elif is_gif:
+            await message.reply_animation(post.video, has_spoiler=True, caption=caption)
+        else:
+            await message.reply_document(post.image, has_spoiler=True, caption=caption)
+    except TelegramBadRequest as e:
+        if second_attempt:
+            await message.reply(f"Failed on second attempt. {e}")
+            return
+        return await cmd_fur(message, True)
 
 
 @dp.message(Command("fur"))
-async def cmd_fur(message: types.Message, bypass_query: Optional[str] = None):
-    query = bypass_query
-    if not bypass_query:
-        command = message.text.split(" ", 1)
-        if len(command) <= 1:
-            await message.reply("Expected to see tags.")
-            return
-        query = urllib.parse.quote(command[-1]).replace("%20", "+")
+async def cmd_fur(message: types.Message, second_attempt: bool = False):
+    command = message.text.split(" ", 1)
+    if len(command) <= 1:
+        await message.reply("Expected to see tags.")
+        return
+    query = urllib.parse.quote(command[-1]).replace("%20", "+")
 
     async with aiohttp.ClientSession(headers={"User-Agent": "t.me/e621csbot"}) as session:
         async with session.get(f"https://e621.net/posts.json?tags=order%3Arandom+{query}+-gore+-scat+-watersports+-young+-loli+-shota+-digestion+-hyper+-overweight&limit=1") as response:
@@ -115,8 +148,6 @@ async def cmd_fur(message: types.Message, bypass_query: Optional[str] = None):
             if is_flash:
                 await message.reply(f"Flash not supported.\n\n{caption}")
                 return
-            
-            StaticData.last_tags = query
 
             try:
                 if is_photo:
@@ -125,8 +156,11 @@ async def cmd_fur(message: types.Message, bypass_query: Optional[str] = None):
                     await message.reply_video(post["file"]["url"], has_spoiler=is_nsfw, caption=caption)
                 else:
                     await message.reply_document(post["file"]["url"], has_spoiler=is_nsfw, caption=caption)
-            except TelegramBadRequest:
-                return await cmd_fur(message)
+            except TelegramBadRequest as e:
+                if second_attempt:
+                    await message.reply(f"Failed on second attempt. {e}")
+                    return
+                return await cmd_fur(message, True)
 
 
 async def main():
