@@ -3,6 +3,7 @@ import logging
 from aiogram import Bot, Dispatcher, types
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters.command import Command
+from aiogram.client.default import DefaultBotProperties
 import aiohttp
 import urllib.parse
 from typing import Dict, List, Optional
