@@ -2,7 +2,6 @@ import asyncio
 import logging
 from aiogram import Bot, Dispatcher, types
 from aiogram.exceptions import TelegramBadRequest
-oh
 from aiogram.filters.command import Command
 import aiohttp
 import urllib.parse
